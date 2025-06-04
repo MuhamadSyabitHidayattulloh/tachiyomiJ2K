@@ -29,9 +29,9 @@ class DownloadBottomPresenter : BaseCoroutinePresenter<DownloadBottomSheet>() {
         presenterScope.launch {
             val items =
                 downloadQueue
-                    .groupBy { it.source }
+                    .groupBy { it.manga }  // Group by manga instead of source
                     .map { entry ->
-                        DownloadHeaderItem(entry.key.id, entry.key.name, entry.value.size).apply {
+                        DownloadHeaderItem(entry.key.id!!, entry.key.title, entry.value.size).apply {
                             addSubItems(0, entry.value.map { DownloadItem(it, this) })
                         }
                     }
