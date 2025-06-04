@@ -164,15 +164,18 @@ jobs:
         run: |
           yes | ${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager "platforms;android-33" "build-tools;33.0.0"
 
+      - name: Setup Gradle with Caching
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          cache-read-only: false  # default true, diubah agar bisa update cache kalau ada perubahan
+
       - name: Copy CI gradle.properties
         run: |
           mkdir -p ~/.gradle
           cp .github/runner-files/ci-gradle.properties ~/.gradle/gradle.properties
 
       - name: Build APK
-        uses: gradle/gradle-command-action@v2
-        with:
-          arguments: assembleStandardRelease
+        run: ./gradlew assembleStandardRelease
 
       - name: Upload APK as artifact
         uses: actions/upload-artifact@v4
