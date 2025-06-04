@@ -231,11 +231,11 @@ class Downloader(
         subscription =
             downloadsRelay
                 .concatMapIterable { it }
-                // Concurrently download from 5 different sources
-                .groupBy { it.source }
+                // Concurrently download from 5 different manga
+                .groupBy { it.manga.id }
                 .flatMap(
-                    { bySource ->
-                        bySource.concatMap { download ->
+                    { byManga ->
+                        byManga.concatMap { download ->
                             Observable
                                 .fromCallable {
                                     runBlocking { downloadChapter(download) }
@@ -243,7 +243,7 @@ class Downloader(
                                 }.subscribeOn(Schedulers.io())
                         }
                     },
-                    5,
+                    5, // Process 5 manga concurrently
                 ).onBackpressureLatest()
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(
