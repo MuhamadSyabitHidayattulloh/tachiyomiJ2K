@@ -121,61 +121,41 @@
 #         env:
 #           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-name: CI
+name: Build APK arm64-v8a only
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - feature_multi_download_manga
-  workflow_dispatch:
-    inputs:
-      version:
-        description: 'Version'
-        required: true
-        type: string
 
 jobs:
   build:
-    name: Build app
+    name: Build arm64-v8a APK
     runs-on: ubuntu-latest
 
     steps:
-      - name: Cancel previous runs
-        uses: styfle/cancel-workflow-action@0.11.0
-        with:
-          access_token: ${{ github.token }}
-          all_but_latest: true
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Clone repo
-        uses: actions/checkout@v3
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
         with:
-          fetch-depth: 0
-
-      - name: Validate Gradle Wrapper
-        uses: gradle/wrapper-validation-action@v1
-
-      - name: Set up JDK
-        uses: actions/setup-java@v3
-        with:
+          distribution: 'temurin'
           java-version: 17
-          distribution: temurin
 
-      - name: Setup Android SDK
-        run: |
-          yes | ${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager "platforms;android-33" "build-tools;33.0.0"
+      - name: Setup Gradle
+        uses: gradle/gradle-build-action@v3
 
-      - name: Copy CI gradle.properties
-        run: |
-          mkdir -p ~/.gradle
-          cp .github/runner-files/ci-gradle.properties ~/.gradle/gradle.properties
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
 
-      - name: Build APK
-        uses: gradle/gradle-command-action@v2
-        with:
-          arguments: assembleStandardRelease
+      - name: Build APK for arm64-v8a
+        run: ./gradlew assembleStandardRelease -Pandroid.injected.build.abi=arm64-v8a
 
-      - name: Upload APK as artifact
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: APK Build Output
-          path: app/build/outputs/apk/standard/release/*.apk
+          name: arm64-v8a-apk
+          path: |
+            **/build/outputs/apk/standard/release/*arm64-v8a*.apk
