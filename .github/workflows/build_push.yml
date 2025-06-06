@@ -233,19 +233,29 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload APKs to Telegram
-        if: env.VERSION_TAG != ''
-        run: |
-          echo "Uploading APKs to Telegram..."
+  if: env.VERSION_TAG != ''
+  run: |
+    echo "Uploading APKs to Telegram..."
 
-          send_document() {
-            curl -s -X POST "https://api.telegram.org/bot${{ secrets.TG_BOT_TOKEN }}/sendDocument" \
-              -F chat_id="${{ secrets.TG_CHAT_ID }}" \
-              -F document=@"$1" \
-              -F caption="$2"
-          }
+    send_document() {
+      local file_path="$1"
+      local caption="$2"
 
-          send_document "tachiyomij2k-${{ env.VERSION_TAG }}.apk" "📦 *Universal* APK\nVersion: *${{ env.VERSION_TAG }}*"
-          send_document "tachiyomij2k-arm64-v8a-${{ env.VERSION_TAG }}.apk" "📦 *arm64-v8a* APK\nVersion: *${{ env.VERSION_TAG }}*"
-          send_document "tachiyomij2k-armeabi-v7a-${{ env.VERSION_TAG }}.apk" "📦 *armeabi-v7a* APK\nVersion: *${{ env.VERSION_TAG }}*"
-          send_document "tachiyomij2k-x86-${{ env.VERSION_TAG }}.apk" "📦 *x86* APK\nVersion: *${{ env.VERSION_TAG }}*"
-          send_document "tachiyomij2k-x86_64-${{ env.VERSION_TAG }}.apk" "📦 *x86_64* APK\nVersion: *${{ env.VERSION_TAG }}*"
+      if [ -f "$file_path" ]; then
+        curl -s -X POST "https://api.telegram.org/bot${{ secrets.TG_BOT_TOKEN }}/sendDocument" \
+          -F chat_id="${{ secrets.TG_CHAT_ID }}" \
+          -F document=@"$file_path" \
+          -F caption="$caption"
+        echo "Uploaded $file_path"
+      else
+        echo "Warning: File $file_path does not exist. Skipping upload."
+      fi
+    }
+
+    BASE_NAME="tachiyomij2k-${{ env.VERSION_TAG }}"
+
+    send_document "${BASE_NAME}.apk" "📦 *Universal* APK\nVersion: *${{ env.VERSION_TAG }}*"
+    send_document "${BASE_NAME}-arm64-v8a.apk" "📦 *arm64-v8a* APK\nVersion: *${{ env.VERSION_TAG }}*"
+    send_document "${BASE_NAME}-armeabi-v7a.apk" "📦 *armeabi-v7a* APK\nVersion: *${{ env.VERSION_TAG }}*"
+    send_document "${BASE_NAME}-x86.apk" "📦 *x86* APK\nVersion: *${{ env.VERSION_TAG }}*"
+    send_document "${BASE_NAME}-x86_64.apk" "📦 *x86_64* APK\nVersion: *${{ env.VERSION_TAG }}*"
