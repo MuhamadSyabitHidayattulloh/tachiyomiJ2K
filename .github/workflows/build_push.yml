@@ -124,6 +124,9 @@
 name: Build & Release APK
 
 on:
+  push:
+    branches:
+      - master
   workflow_dispatch:
     inputs:
       version:
