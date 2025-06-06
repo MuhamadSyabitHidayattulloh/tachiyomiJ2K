@@ -1,19 +1,13 @@
 name: CI
-
 on:
   push:
     branches:
       - master
   workflow_dispatch:
-    inputs:
-      version:
-        description: 'Version'
-        required: true
-        type: string
 
 jobs:
   build:
-    name: Build and Send APK
+    name: Build app
     runs-on: ubuntu-latest
 
     steps:
@@ -23,13 +17,17 @@ jobs:
           access_token: ${{ github.token }}
           all_but_latest: true
 
-      - name: Checkout repository
+      - name: Clone repo
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
       - name: Validate Gradle Wrapper
         uses: gradle/wrapper-validation-action@v1
+        
+      - name: Setup Android SDK
+        run: |
+          ${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager "build-tools;29.0.3"
 
       - name: Set up JDK
         uses: actions/setup-java@v3
@@ -37,99 +35,20 @@ jobs:
           java-version: 17
           distribution: temurin
 
-      - name: Set up Android SDK
-        run: |
-          yes | ${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager "platforms;android-33" "build-tools;33.0.0"
-
-      - name: Set up Gradle with caching
-        uses: gradle/actions/setup-gradle@v3
-        with:
-          cache-read-only: false
-
       - name: Copy CI gradle.properties
         run: |
           mkdir -p ~/.gradle
           cp .github/runner-files/ci-gradle.properties ~/.gradle/gradle.properties
 
-      - name: Build APK
-        run: ./gradlew assembleStandardRelease
-
-      - name: Rename APKs and calculate checksums
-        run: |
-          set -e
-          VERSION_TAG=${{ github.event.inputs.version }}
-          echo "VERSION_TAG=$VERSION_TAG" >> $GITHUB_ENV
-
-          OUTPUT_DIR=app/build/outputs/apk/standard/release
-
-          declare -A APK_VARIANTS=(
-            ["universal"]="app-standard-universal-release.apk"
-            ["arm64-v8a"]="app-standard-arm64-v8a-release.apk"
-            ["armeabi-v7a"]="app-standard-armeabi-v7a-release.apk"
-            ["x86"]="app-standard-x86-release.apk"
-            ["x86_64"]="app-standard-x86_64-release.apk"
-          )
-
-          for VARIANT in "${!APK_VARIANTS[@]}"; do
-            ORIGINAL_APK="$OUTPUT_DIR/${APK_VARIANTS[$VARIANT]}"
-            RENAMED_APK="tachiyomij2k-${VARIANT}-${VERSION_TAG}.apk"
-            if [ -f "$ORIGINAL_APK" ]; then
-              cp "$ORIGINAL_APK" "$RENAMED_APK"
-              SHA=$(sha256sum "$RENAMED_APK" | awk '{ print $1 }')
-              echo "APK_${VARIANT^^}_SHA=$SHA" >> $GITHUB_ENV
-            else
-              echo "File $ORIGINAL_APK tidak ditemukan."
-              exit 1
-            fi
-          done
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
+      - name: Build app
+        uses: gradle/gradle-command-action@v2
         with:
-          tag_name: ${{ env.VERSION_TAG }}
-          name: TachiyomiJ2K ${{ env.VERSION_TAG }}
-          body: |
-            ---
-            ### Checksums
+          arguments: assembleStandardRelease
 
-            | Variant     | SHA-256                               |
-            |-------------|---------------------------------------|
-            | Universal   | ${{ env.APK_UNIVERSAL_SHA }}          |
-            | arm64-v8a   | ${{ env.APK_ARM64-V8A_SHA }}          |
-            | armeabi-v7a | ${{ env.APK_ARMEABI-V7A_SHA }}        |
-            | x86         | ${{ env.APK_X86_SHA }}                |
-            | x86_64      | ${{ env.APK_X86_64_SHA }}             |
-          files: |
-            tachiyomij2k-universal-${{ env.VERSION_TAG }}.apk
-            tachiyomij2k-arm64-v8a-${{ env.VERSION_TAG }}.apk
-            tachiyomij2k-armeabi-v7a-${{ env.VERSION_TAG }}.apk
-            tachiyomij2k-x86-${{ env.VERSION_TAG }}.apk
-            tachiyomij2k-x86_64-${{ env.VERSION_TAG }}.apk
-          draft: true
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload APKs to Telegram
-        run: |
-          echo "Mengunggah APK ke Telegram..."
-
-          send_document() {
-            curl -s -X POST "https://api.telegram.org/bot${{ secrets.TG_BOT_TOKEN }}/sendDocument" \
-              -F chat_id="${{ secrets.TG_CHAT_ID }}" \
-              -F document=@"$1" \
-              -F caption="$2" \
-              -F parse_mode="Markdown"
-          }
-
-          VARIANTS=("universal" "arm64-v8a" "armeabi-v7a" "x86" "x86_64")
-          for VARIANT in "${VARIANTS[@]}"; do
-            FILE="tachiyomij2k-${VARIANT}-${{ env.VERSION_TAG }}.apk"
-            if [ -f "$FILE" ]; then
-              CAPTION="📦 *${VARIANT}* APK\nVersion: *${{ env.VERSION_TAG }}*"
-              send_document "$FILE" "$CAPTION"
-            else
-              echo "File $FILE tidak ditemukan."
-              exit 1
-            fi
-          done
+      - name: Upload APK artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: app-apks
+          path: |
+            app/build/outputs/apk/**/*.apk
+          retention-days: 1
