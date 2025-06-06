@@ -116,6 +116,10 @@
 #             tachiyomij2k-armeabi-v7a-${{ env.VERSION_TAG }}.apk
 #             tachiyomij2k-x86-${{ env.VERSION_TAG }}.apk
 #             tachiyomij2k-x86_64-${{ env.VERSION_TAG }}.apk
+#           draft: true
+#           prerelease: false
+#         env:
+#           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 name: CI
 on:
@@ -245,8 +249,3 @@ jobs:
           send_document "tachiyomij2k-armeabi-v7a-${{ env.VERSION_TAG }}.apk" "📦 *armeabi-v7a* APK\nVersion: *${{ env.VERSION_TAG }}*"
           send_document "tachiyomij2k-x86-${{ env.VERSION_TAG }}.apk" "📦 *x86* APK\nVersion: *${{ env.VERSION_TAG }}*"
           send_document "tachiyomij2k-x86_64-${{ env.VERSION_TAG }}.apk" "📦 *x86_64* APK\nVersion: *${{ env.VERSION_TAG }}*"
-
-#           draft: true
-#           prerelease: false
-#         env:
-#           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
